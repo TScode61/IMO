@@ -538,5 +538,25 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
+
+  <!-- Service Workerの登録（オフライン対応用） -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // Canvasのプレビュー環境など (blob: URL) ではService Workerを登録しないようにしてエラーを回避
+        if (window.location.protocol === 'https:' || window.location.protocol === 'http:') {
+          navigator.serviceWorker.register('./sw.js')
+            .then((registration) => {
+              console.log('Service Worker registered successfully.');
+            })
+            .catch((error) => {
+              console.log('Service Worker registration failed (This is expected in some environments):', error);
+            });
+        } else {
+          console.log('Service Worker registration skipped due to unsupported URL protocol.');
+        }
+      });
+    }
+  </script>
 </body>
 </html>
