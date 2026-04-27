@@ -28,7 +28,6 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   
   <style>
-    /* ↓↓↓ 修正：左右のスクロールを防止しつつ、入力欄のバグを回避 ↓↓↓ */
     body {
       overflow-x: hidden;
     }
@@ -38,13 +37,11 @@
       min-height: 100vh;
     }
     
-    /* スマホ・PWA環境でキーボードが起動しない問題の対策 */
     input[type="text"] {
       -webkit-user-select: text !important;
       user-select: text !important;
       touch-action: auto !important;
     }
-    /* ↑↑↑ ここまで ↑↑↑ */
 
     body {
       font-family: 'M PLUS Rounded 1c', sans-serif;
@@ -65,6 +62,15 @@
     .drag-ghost {
       opacity: 0.4;
       background: #c084fc !important;
+    }
+    /* ドラッグ中に指についてくる要素のスタイル */
+    .drag-fallback {
+      opacity: 0.9 !important;
+      background: white !important;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.2) !important;
+      transform: scale(1.02);
+      border-radius: 1rem !important;
+      z-index: 9999 !important;
     }
     .drag-handle {
       -webkit-touch-callout: none !important;
@@ -189,6 +195,8 @@
             delay: 200, 
             delayOnTouchOnly: true,
             fallbackTolerance: 5, 
+            forceFallback: true, // CSSによるレイアウト崩れを防ぎ、常に安定したドラッグ要素を生成
+            fallbackClass: 'drag-fallback',
             ghostClass: 'drag-ghost',
             scroll: true, 
             onStart: () => { isDragging.current = true; },
@@ -274,8 +282,15 @@
                     </svg>
                     <span className="relative z-10 text-white font-black text-lg">{index + 1}</span>
                   </div>
-                  <input type="text" value={p.name} onChange={(e) => setPlayers(players.map(pl => pl.id === p.id ? { ...pl, name: e.target.value } : pl))} className="flex-1 bg-transparent px-2 py-2 outline-none font-bold text-slate-700 min-w-0" placeholder="なまえ" />
-                  {players.length > 2 && <button onClick={() => setPlayers(players.filter(pl => pl.id !== p.id))} className="text-red-300 hover:text-red-500 font-black text-2xl px-2 shrink-0 leading-none pb-1 transition-colors">×</button>}
+                  <input type="text" value={p.name} onChange={(e) => setPlayers(players.map(pl => pl.id === p.id ? { ...pl, name: e.target.value } : pl))} className="flex-1 w-full bg-transparent px-2 py-2 outline-none font-bold text-slate-700 min-w-0" placeholder="なまえ" />
+                  {players.length > 2 && (
+                    <button 
+                      onClick={() => setPlayers(players.filter(pl => pl.id !== p.id))} 
+                      className="shrink-0 w-10 h-10 flex items-center justify-center text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                  )}
                 </div>
               ))}
               <button onClick={() => setPlayers([...players, { id: Date.now(), name: `プレイヤー${players.length + 1}`, number: null, played: false, answer: '', isOpen: false }])} className="relative z-10 w-full py-3 mt-2 border-2 border-dashed border-purple-200 text-purple-400 rounded-2xl font-bold text-sm bg-white/50 active:scale-95 transition-transform">+ プレイヤーを追加する</button>
@@ -351,7 +366,7 @@
                 まだ誰も場に出していません
               </div>
             ) : (
-              <div ref={sortableRef} className="space-y-3">
+              <div ref={sortableRef} className="space-y-3 relative">
                 {playedSequence.map((id, index) => {
                   const p = players.find(pl => pl.id === id);
                   return (
