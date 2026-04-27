@@ -196,6 +196,8 @@
         if (phase === 'play' && playedSequence.length > 0 && sortableRef.current && window.Sortable) {
           sortableInstance = window.Sortable.create(sortableRef.current, {
             handle: '.drag-handle',
+            filter: 'input, button', // 追加：入力フォームとボタンをドラッグ判定から除外
+            preventOnFilter: false,  // 追加：除外した要素の通常操作（キーボード起動など）を許可
             animation: 250, // アニメーションを長くして滑らかに
             easing: "cubic-bezier(0.2, 0, 0, 1)", // 減速しながら定位置に収まる自然な動き
             delay: 0, // ★遅延をゼロにし、タップした瞬間にドラッグ開始
