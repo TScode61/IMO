@@ -60,17 +60,21 @@
       scroll-behavior: smooth;
     }
     .drag-ghost {
-      opacity: 0.4;
-      background: #c084fc !important;
+      opacity: 0.3;
+      background: #e9d5ff !important;
+      border: 2px dashed #c084fc !important;
     }
     /* ドラッグ中に指についてくる要素のスタイル */
     .drag-fallback {
-      opacity: 0.9 !important;
+      opacity: 0.95 !important;
       background: white !important;
-      box-shadow: 0 15px 30px rgba(0,0,0,0.2) !important;
-      transform: scale(1.02);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15) !important;
+      transform: scale(1.05) rotate(1deg); /* 少し傾けて持ち上げてる感を演出 */
+      will-change: transform; /* GPUアクセラレーションを有効化してカクつきを防止 */
       border-radius: 1rem !important;
       z-index: 9999 !important;
+      pointer-events: none !important; /* 指の追従性を向上させる */
+      cursor: grabbing !important;
     }
     .drag-handle {
       -webkit-touch-callout: none !important;
@@ -185,20 +189,23 @@
         localStorage.setItem('imo_party_players', JSON.stringify(players.map(p => ({ id: p.id, name: p.name }))));
       }, [players]);
 
-      // SortableJSの初期化
+      // SortableJSの初期化（超スムーズ・チューニング版）
       useEffect(() => {
         let sortableInstance = null;
         if (phase === 'play' && playedSequence.length > 0 && sortableRef.current && window.Sortable) {
           sortableInstance = window.Sortable.create(sortableRef.current, {
             handle: '.drag-handle',
-            animation: 150,
-            delay: 200, 
-            delayOnTouchOnly: true,
-            fallbackTolerance: 5, 
-            forceFallback: true, // CSSによるレイアウト崩れを防ぎ、常に安定したドラッグ要素を生成
+            animation: 250, // アニメーションを長くして滑らかに
+            easing: "cubic-bezier(0.2, 0, 0, 1)", // 減速しながら定位置に収まる自然な動き
+            delay: 0, // ★遅延をゼロにし、タップした瞬間にドラッグ開始
+            fallbackTolerance: 3,
+            forceFallback: true, 
+            fallbackOnBody: true, // 画面全体での追従性を向上
             fallbackClass: 'drag-fallback',
             ghostClass: 'drag-ghost',
             scroll: true, 
+            scrollSensitivity: 80, // スクロール感度を上げて端っこでスムーズにスクロールさせる
+            scrollSpeed: 15,
             onStart: () => { isDragging.current = true; },
             onEnd: (evt) => {
               setTimeout(() => { isDragging.current = false; }, 50);
