@@ -66,15 +66,16 @@
     }
     /* ドラッグ中に指についてくる要素のスタイル */
     .drag-fallback {
-      opacity: 0.95 !important;
+      opacity: 0.98 !important;
       background: white !important;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.15) !important;
-      transform: scale(1.05) rotate(1deg); /* 少し傾けて持ち上げてる感を演出 */
-      will-change: transform; /* GPUアクセラレーションを有効化してカクつきを防止 */
+      /* 座標ズレの原因になるため transform(scale, rotate) は使用せず、強い影とボーダーで持ち上げ感を表現 */
+      box-shadow: 0 20px 40px rgba(0,0,0,0.25), 0 0 0 2px #c084fc !important; 
+      will-change: transform;
       border-radius: 1rem !important;
       z-index: 9999 !important;
-      pointer-events: none !important; /* 指の追従性を向上させる */
+      pointer-events: none !important;
       cursor: grabbing !important;
+      margin: 0 !important; /* マージンによるズレも念のため防止 */
     }
     .drag-handle {
       -webkit-touch-callout: none !important;
