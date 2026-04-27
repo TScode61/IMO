@@ -1,64 +1,62 @@
-const CACHE_NAME = 'imo-party-cache-v2'; // バージョンを更新
-const urlsToCache = [
+const CACHE_NAME = 'imo-party-cache-v3';
+
+// インストール時にキャッシュするのを「自身のファイルのみ」に限定し、タイムアウトによる失敗を防ぐ
+const localUrls = [
   './',
-  './index.html',
-  'https://cdn.tailwindcss.com',
-  'https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800;900&display=swap',
-  'https://unpkg.com/react@18/umd/react.production.min.js',
-  'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
-  'https://unpkg.com/@babel/standalone/babel.min.js',
-  'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js'
+  './index.html'
 ];
 
-// インストール時に初期ファイルをキャッシュ
 self.addEventListener('install', event => {
+  self.skipWaiting(); // 新しいバージョンをすぐに待機からアクティブへ
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
-      .then(() => self.skipWaiting()) // 即座に新しいServiceWorkerを待機状態から有効にする
+    caches.open(CACHE_NAME).then(cache => cache.addAll(localUrls))
   );
 });
 
-// 古いキャッシュを削除して新しいものに更新
 self.addEventListener('activate', event => {
+  // 古いバージョンのキャッシュを削除
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.filter(cacheName => cacheName !== CACHE_NAME)
-          .map(cacheName => caches.delete(cacheName))
-      );
-    }).then(() => self.clients.claim())
+    caches.keys().then(keys => Promise.all(
+      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+    )).then(() => self.clients.claim())
   );
 });
 
-// オフライン時にキャッシュからファイルを返す
 self.addEventListener('fetch', event => {
-  // ブラウザの拡張機能など、http/https以外のリクエストは無視する
+  if (event.request.method !== 'GET') return;
   if (!event.request.url.startsWith('http')) return;
 
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // キャッシュがあればそれを返す（オフライン時）
-        if (response) return response;
+    caches.match(event.request).then(cachedResponse => {
+      if (cachedResponse) {
+        return cachedResponse; // キャッシュがあれば返す（オフライン時）
+      }
 
-        // キャッシュがなければネットワークから取得
-        return fetch(event.request).then(response => {
-          // CDNなどの外部リソース（CORSやOpaqueレスポンス）もキャッシュに保存するように条件を緩和
-          if (!response || (response.status !== 200 && response.type !== 'opaque')) {
-            return response;
-          }
-          
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              cache.put(event.request, responseToCache);
-            });
+      // キャッシュがなければネットワークから取得して、次回のために保存する
+      return fetch(event.request).then(response => {
+        // 正常なレスポンスのみ保存
+        if (!response || response.status !== 200 || response.type === 'error') {
           return response;
-        }).catch(error => {
-          console.log('オフラインのためネットワークリクエストに失敗しました:', event.request.url);
-          // エラーでアプリがクラッシュしないようにする
+        }
+        
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseClone);
         });
-      })
+        
+        return response;
+      }).catch(error => {
+        console.log('オフラインのため通信できませんでした:', event.request.url);
+      });
+    })
   );
 });
+
+### 手順3: インストールと「待機」（★ここが重要です）
+1. スマホのホーム画面にある **現在のアプリを削除** します。
+2. Safariなどの履歴やキャッシュを削除します。
+3. GitHubページ（`https://TScode61.github.io/wordwolf/`）にアクセスします。
+4. **⚠️画面が開いたら、何もせずにそのまま「10秒ほど」待ってください。**
+   *(※この待っている間に、裏側で大きなプログラム達が確実にスマホ本体へ保存されます)*
+5. 10秒待ったら、「ホーム画面に追加」を行ってください。
+6. 追加したアプリを起動し、**ここでも5秒ほど待ってから**、タスクキル＆機内モードにして再度開けるかお試しください！
