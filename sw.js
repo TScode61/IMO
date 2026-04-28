@@ -1,62 +1,52 @@
-const CACHE_NAME = 'imo-party-cache-v3';
+// IMO Service Worker
+// 仕様書「3.② オフライン対応・PWA関連」の教訓に基づく実装：
+// - install時の一括事前キャッシュは行わない（重い外部ファイルが1つでも失敗すると全滅するため）
+// - fetchイベントで動的にキャッシュを追加する
+// - CDN（cors/opaque）応答もキャッシュ対象にする（このアプリはReact/Tailwind/Babel/SortableJS/Google FontsをCDN依存）
 
-// インストール時にキャッシュするのを「自身のファイルのみ」に限定し、タイムアウトによる失敗を防ぐ
-const localUrls = [
-  './',
-  './index.html'
-];
+const CACHE = "imo-v3";
+const CORE_ASSETS = ["./", "./index.html"];
 
-self.addEventListener('install', event => {
-  self.skipWaiting(); // 新しいバージョンをすぐに待機からアクティブへ
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(localUrls))
+    caches.open(CACHE).then((cache) => cache.addAll(CORE_ASSETS))
   );
+  self.skipWaiting();
 });
 
-self.addEventListener('activate', event => {
-  // 古いバージョンのキャッシュを削除
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-    )).then(() => self.clients.claim())
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    )
   );
+  self.clients.claim();
 });
 
-self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-  if (!event.request.url.startsWith('http')) return;
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET") return;
+
+  // chrome-extension: 等は対象外
+  const url = new URL(req.url);
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse; // キャッシュがあれば返す（オフライン時）
-      }
-
-      // キャッシュがなければネットワークから取得して、次回のために保存する
-      return fetch(event.request).then(response => {
-        // 正常なレスポンスのみ保存
-        if (!response || response.status !== 200 || response.type === 'error') {
-          return response;
-        }
-        
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseClone);
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetch(req)
+        .then((res) => {
+          // 同一オリジン(basic) / CORS / no-cors(opaque, status=0) のいずれもキャッシュする
+          if (res && (res.ok || res.type === "opaque")) {
+            const copy = res.clone();
+            caches.open(CACHE).then((cache) => cache.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => {
+          // オフラインでナビゲーション時はindex.htmlにフォールバック
+          if (req.mode === "navigate") return caches.match("./index.html");
         });
-        
-        return response;
-      }).catch(error => {
-        console.log('オフラインのため通信できませんでした:', event.request.url);
-      });
     })
   );
 });
-
-### 手順3: インストールと「待機」（★ここが重要です）
-1. スマホのホーム画面にある **現在のアプリを削除** します。
-2. Safariなどの履歴やキャッシュを削除します。
-3. GitHubページ（`https://TScode61.github.io/wordwolf/`）にアクセスします。
-4. **⚠️画面が開いたら、何もせずにそのまま「10秒ほど」待ってください。**
-   *(※この待っている間に、裏側で大きなプログラム達が確実にスマホ本体へ保存されます)*
-5. 10秒待ったら、「ホーム画面に追加」を行ってください。
-6. 追加したアプリを起動し、**ここでも5秒ほど待ってから**、タスクキル＆機内モードにして再度開けるかお試しください！
